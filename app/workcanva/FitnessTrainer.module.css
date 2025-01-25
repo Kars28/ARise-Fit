@@ -1,0 +1,238 @@
+.workoutContainer {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  align-items: center;
+  justify-content: space-around;
+  margin: auto;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.cameraContainer {
+  display: flex;
+  position: relative;
+  border-radius: 2rem;
+  width: 100%;
+}
+
+.detectContainer {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.workoutWebcam {
+  position: absolute;
+  transform: rotateY(180deg);
+  width: 100%;
+}
+
+.workoutCanvas {
+  position: absolute;
+  z-index: 1;
+  transform: rotateY(180deg);
+  width: 100%;
+}
+
+.showbodyScreen {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.cameraLoadingScreen {
+  background-color: #fff;
+}
+
+.trackingImg {
+  height: 300px;
+  width: auto;
+  margin: 0.5rem;
+}
+
+.yogaWebcam {
+  position: absolute;
+  transform: scale(1.5) rotateY(180deg);
+}
+
+.yogaCanvas {
+  z-index: 1;
+  position: absolute;
+  transform: scale(1.5) rotateY(180deg);
+}
+
+.resultsContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  width: 40%;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.workoutTitle {
+  font-size: 1.5rem;
+  margin: 0.25rem 0;
+  text-align: center;
+}
+
+.trackTitle {
+  color: #fff;
+  margin: 0.5rem;
+}
+
+.viewerTop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 15%;
+}
+
+.genderContainer {
+  display: flex;
+  gap: 10px;
+}
+
+.demoContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.demoImage {
+  width: 100%;
+  height: auto;
+}
+
+.modelContrainer {
+  height: 45vh;
+  width: 100%;
+  border: 0px;
+}
+
+.countSettings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.countDisplay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.countInput {
+  border: none;
+  outline: none;
+  width: 150px;
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 6px;
+  box-shadow: 0px 2px 16px 2px rgba(0, 0, 0, 0.15);
+}
+
+.countControls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  border-radius: 2rem;
+}
+
+.link {
+  text-decoration: none;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+}
+
+.exploreButton {
+  margin-bottom: 20px;
+}
+
+@media screen and (max-width: 1024px) {
+  .workoutContainer {
+    flex-direction: column;
+    height: fit-content;
+  }
+  .infoContainer {
+    height: 0;
+  }
+  .detectContainer {
+    width: 100%;
+    height: 75vh;
+    flex-direction: row-reverse;
+  }
+  .viewerTop {
+    gap: 5%;
+  }
+  .workoutWebcam,
+  .workoutCanvas,
+  .showbodyScreen {
+    height: 100%;
+    width: auto;
+  }
+  .yogaWebcam,
+  .yogaCanvas {
+    transform: rotateY(180deg);
+    height: 100%;
+    width: auto;
+  }
+  .resultsContainer {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .workoutTitle {
+    font-size: 1.3rem;
+  }
+  .modelContrainer {
+    height: 33vh;
+  }
+  .introContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  .trackingImg {
+    height: 200px;
+    width: auto;
+    margin: 2rem;
+  }
+}
