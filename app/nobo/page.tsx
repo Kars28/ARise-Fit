@@ -47,6 +47,27 @@ const WorkoutCardsWithNavbar = () => {
       image: '/jumpingjacks.jpg',
       link: '/jj', // Path to the Jumping Jacks page
     },
+    {
+      title: 'YOGA',
+      description:
+        'Yoga Tree Pose.',
+      image: '/jumpingjacks.jpg',
+      link: '/yoga', // Path to the Jumping Jacks page
+    },
+    {
+      title: 'warrior pose',
+      description:
+        'Yoga Warrior pose.',
+      image: '/jumpingjacks.jpg',
+      link: '/warrior', // Path to the Jumping Jacks page
+    },
+    {
+      title: 'Downward dog pose',
+      description:
+        'Yoga downward.',
+      image: '/jumpingjacks.jpg',
+      link: '/down', // Path to the Jumping Jacks page
+    },
   ];
 
   return (

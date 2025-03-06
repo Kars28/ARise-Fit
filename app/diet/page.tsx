@@ -37,6 +37,7 @@ export default function AIDietWorkoutRecommendation() {
   })
 
   const [loading, setLoading] = useState(false)
+  const [dietSuggestions, setDietSuggestions] = useState<string>("")
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target
@@ -85,16 +86,17 @@ export default function AIDietWorkoutRecommendation() {
       a.click()
       a.remove()
 
-      toast({
-        title: "Success",
-        description: "Your AI diet and workout recommendation has been generated and downloaded.",
+      const dietResponse = await fetch("http://127.0.0.1:5000/generate_indian_diet", {
+        method: "POST",
+        body: JSON.stringify(formData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
+      const dietData = await dietResponse.json()
+      setDietSuggestions(dietData.diet_plan)
     } catch (error) {
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-        variant: "destructive",
-      })
+      console.error("Error:", (error as Error).message)
     } finally {
       setLoading(false)
     }
@@ -112,7 +114,6 @@ export default function AIDietWorkoutRecommendation() {
           <div className="hidden md:flex items-center space-x-8">
             <Link href="#features" className="hover:text-red-500 transition-colors text-xl font-medium">Features</Link>
             <Link href="#ai" className="hover:text-red-500 transition-colors text-xl font-medium">AI Coach</Link>
-
           </div>
         </div>
       </nav>
@@ -265,8 +266,54 @@ export default function AIDietWorkoutRecommendation() {
             {loading ? "Generating..." : "Get AI Recommendation"}
           </Button>
         </form>
+
+        {dietSuggestions && (
+          <div className="mt-8 bg-gray-800 p-4 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-red-500">Diet Suggestions</h2>
+            <table className="w-full text-white">
+              <thead>
+                <tr>
+                  <th className="border-b border-gray-700 p-2">Goal</th>
+                  <th className="border-b border-gray-700 p-2">Meal</th>
+                  <th className="border-b border-gray-700 p-2">Suggestions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border-b border-gray-700 p-2">Weight Loss</td>
+                  <td className="border-b border-gray-700 p-2">Breakfast</td>
+                  <td className="border-b border-gray-700 p-2">Oats with milk and fruits, or idli/dosa with sambar and chutney.</td>
+                </tr>
+                <tr>
+                  <td className="border-b border-gray-700 p-2">Weight Loss</td>
+                  <td className="border-b border-gray-700 p-2">Lunch</td>
+                  <td className="border-b border-gray-700 p-2">Brown rice/roti with dal, vegetables (like spinach, bhindi), and a small portion of curd.</td>
+                </tr>
+                <tr>
+                  <td className="border-b border-gray-700 p-2">Weight Loss</td>
+                  <td className="border-b border-gray-700 p-2">Dinner</td>
+                  <td className="border-b border-gray-700 p-2">Vegetable khichdi, or moong dal cheela with salad.</td>
+                </tr>
+                <tr>
+                  <td className="border-b border-gray-700 p-2">Muscle Gain</td>
+                  <td className="border-b border-gray-700 p-2">Breakfast</td>
+                  <td className="border-b border-gray-700 p-2">2-3 whole eggs, 2 whole wheat toast with peanut butter, banana.</td>
+                </tr>
+                <tr>
+                  <td className="border-b border-gray-700 p-2">Muscle Gain</td>
+                  <td className="border-b border-gray-700 p-2">Lunch</td>
+                  <td className="border-b border-gray-700 p-2">Brown rice/roti with chicken/paneer curry, dal, and mixed vegetables.</td>
+                </tr>
+                <tr>
+                  <td className="border-b border-gray-700 p-2">Muscle Gain</td>
+                  <td className="border-b border-gray-700 p-2">Dinner</td>
+                  <td className="border-b border-gray-700 p-2">Chicken breast with brown rice and stir-fried vegetables, or lentils with paneer.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
 }
-

@@ -2,12 +2,9 @@ from flask import Flask, request, jsonify, send_file
 from pdf2image import convert_from_path
 from PIL import Image
 import os
-from flask import Flask, request, render_template, jsonify
 import PyPDF2
 import pytesseract
 import tempfile
-import PyPDF2
-import os
 from flask_cors import CORS
 import pandas as pd
 from sklearn.cluster import KMeans
@@ -19,6 +16,7 @@ from sklearn.impute import SimpleImputer
 from io import BytesIO
 from xhtml2pdf import pisa
 import re
+import google.generativeai as genai
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -84,6 +82,9 @@ clustering_pipeline.fit(nutrition_df[USER_FEATURES])
 rf_reg = RandomForestRegressor(n_estimators=100, random_state=42)
 rf_reg.fit(nutrition_df[USER_FEATURES], nutrition_df['BMI'])
 
+# Configure Gemini AI
+genai.configure(api_key="AIzaSyB7aHEwumP-zI8f1TYCxjK_o3deLRxK0Ik")
+
 # Recommend meal and workout based on user input
 def recommend_meal_and_workout(user_input):
     user_df = pd.DataFrame([user_input])
@@ -133,9 +134,15 @@ def recommend_meal_and_workout(user_input):
         'Workout': workout_plan.to_dict(orient='records')
     }
 
+# Generate diet suggestions using Gemini AI
+def generate_diet_suggestions(user_input):
+    prompt = f"Suggest an Indian diet plan for a {user_input['Age']} year old {user_input['Gender']} with a goal to {user_input['Goal']}. Include options for breakfast, lunch, and dinner in three lines."
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+    return response.text
+
 # Extract text from reports
 def extract_blood_sugar(text):
-    import re
     patterns = [
         r'(?i)blood\s*sugar\s*[:\-]?\s*(\d+)',  # Match "Blood Sugar: 110"
         r'(?i)sugar\s*level\s*[:\-]?\s*(\d+)'   # Match "Sugar Level: 110"
@@ -174,7 +181,7 @@ def extract_text_from_reports(files):
     return "\n".join(report_details)
 
 # Generate PDF report
-def generate_pdf(plan, report_details):
+def generate_pdf(plan, report_details, diet_suggestions):
     def format_meal(meals):
         rows = ""
         for meal in meals:
@@ -196,6 +203,51 @@ def generate_pdf(plan, report_details):
             """
         return rows
 
+    def format_diet_suggestions():
+        return f"""
+        <table style="font-size: 1.5em;">
+            <thead>
+                <tr>
+                    <th>Goal</th>
+                    <th>Meal</th>
+                    <th>Suggestions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Weight Loss</td>
+                    <td>Breakfast</td>
+                    <td>Oats with milk and fruits, or idli/dosa with sambar and chutney.</td>
+                </tr>
+                <tr>
+                    <td>Weight Loss</td>
+                    <td>Lunch</td>
+                    <td>Brown rice/roti with dal, vegetables (like spinach, bhindi), and a small portion of curd.</td>
+                </tr>
+                <tr>
+                    <td>Weight Loss</td>
+                    <td>Dinner</td>
+                    <td>Vegetable khichdi, or moong dal cheela with salad.</td>
+                </tr>
+                <tr>
+                    <td>Muscle Gain</td>
+                    <td>Breakfast</td>
+                    <td>2-3 whole eggs, 2 whole wheat toast with peanut butter, banana.</td>
+                </tr>
+                <tr>
+                    <td>Muscle Gain</td>
+                    <td>Lunch</td>
+                    <td>Brown rice/roti with chicken/paneer curry, dal, and mixed vegetables.</td>
+                </tr>
+                <tr>
+                    <td>Muscle Gain</td>
+                    <td>Dinner</td>
+                    <td>Chicken breast with brown rice and stir-fried vegetables, or lentils with paneer.</td>
+                </tr>
+            </tbody>
+        </table>
+        """
+
     template = f"""
     <html>
     <head>
@@ -205,6 +257,7 @@ def generate_pdf(plan, report_details):
             table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
             th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
             th {{ background-color: #4CAF50; color: white; }}
+            .diet-suggestions {{ font-size: 1.5em; color: #FF5722; }}
         </style>
     </head>
     <body>
@@ -231,6 +284,8 @@ def generate_pdf(plan, report_details):
         <p>{report_details}</p>
         <h2>Predicted BMI</h2>
         <p>Your predicted BMI is: <b>{plan['BMI']:.2f}</b></p>
+        <h2>Diet Suggestions</h2>
+        <div class="diet-suggestions">{format_diet_suggestions()}</div>
     </body>
     </html>
     """
@@ -263,7 +318,8 @@ def diet():
     }
 
     recommended_plan = recommend_meal_and_workout(user_input)
-    pdf = generate_pdf(recommended_plan, report_details)
+    diet_suggestions = generate_diet_suggestions(user_input)
+    pdf = generate_pdf(recommended_plan, report_details, diet_suggestions)
     return send_file(pdf, download_name='Health_Report.pdf', as_attachment=True)
 
 @app.route('/')
@@ -383,7 +439,6 @@ def extract_data_from_file(file_path):
     data = extract_data_from_report(text)
     recommendations = health_recommendation(data)
     return data, recommendations
-
 # Route to upload multiple files
 @app.route('/analyzereport', methods=['POST'])
 def upload_files():
@@ -407,6 +462,17 @@ def upload_files():
     
     # Return results as JSON
     return jsonify({"Extracted Results": results})
+
+@app.route('/generate_indian_diet', methods=['POST'])
+def generate_indian_diet():
+    data = request.json
+    prompt = f"Suggest an Indian diet plan for a {data['age']} year old {data['gender']} with a goal to {data['goal']}. Include options for breakfast, lunch, and dinner in three lines."
+    
+    genai.configure(api_key="AIzaSyB7aHEwumP-zI8f1TYCxjK_o3deLRxK0Ik")
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+    
+    return jsonify({"diet_plan": response.text})
 
 if __name__ == '__main__':
     app.run(debug=True)
