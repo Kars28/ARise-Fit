@@ -21,8 +21,8 @@ A Next.js application that provides personalized fitness training with AR-powere
 
 1. Clone the repository:
 ```powershell
-git clone https://github.com/your-username/ai-fitness-trainer.git
-cd ai-fitness-trainer
+git clone https://github.com/Praniti03/assignment_task.git
+cd assignment_task
 ```
 
 2. Install Node.js dependencies:
