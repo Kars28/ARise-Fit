@@ -1,83 +1,100 @@
 "use client"
-import { useEffect, useRef, useState } from 'react';
-import * as tf from '@tensorflow/tfjs';
-import * as poseDetection from '@tensorflow-models/pose-detection';
-import '@tensorflow/tfjs-backend-webgl';
 
-export default function PoseEstimation() {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [reps, setReps] = useState(0);
-  let count = 0;
-  let isCurling = false;
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft, Dumbbell, Camera, X, Loader2 } from 'lucide-react'
+import Script from 'next/script'
+import { Card } from '@/components/ui/card'
+import WorkoutExercises from '@/components/workout-exercises'
+
+// Declare global types
+declare global {
+  interface Window {
+    tf?: any;
+    poseDetection?: any;
+    arWorkout?: {
+      init: (exerciseId: string) => Promise<void>;
+      stop: () => void;
+    };
+  }
+}
+
+type WorkoutType = 'strength' | 'yoga'
+
+export default function WorkoutPage() {
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutType | null>(null)
+  const [isARReady, setIsARReady] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const runPoseEstimation = async () => {
-      const detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.BlazePose,
-        {
-          runtime: 'tfjs',
-          modelType: 'full'
-        }
-      );
-
-      const detect = async () => {
-        if (videoRef.current) {
-          const poses = await detector.estimatePoses(videoRef.current);
-          if (poses.length > 0) {
-            analyzePose(poses[0]);
-          }
-          requestAnimationFrame(detect);
-        }
-      };
-      detect();
-    };
-
-    const setupCamera = async () => {
-      const video = videoRef.current;
-      if (video) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-        video.play();
-      }
-    };
-
-    setupCamera().then(runPoseEstimation);
-  }, []);
-
-  const analyzePose = (pose) => {
-    const keypoints = pose.keypoints;
-    const leftShoulder = keypoints.find(point => point.name === 'left_shoulder');
-    const leftElbow = keypoints.find(point => point.name === 'left_elbow');
-    const leftWrist = keypoints.find(point => point.name === 'left_wrist');
-
-    if (leftShoulder && leftElbow && leftWrist) {
-      const angle = calculateAngle(leftShoulder, leftElbow, leftWrist);
-      if (angle < 50 && !isCurling) {
-        isCurling = true;
-      }
-      if (angle > 140 && isCurling) {
-        count++;
-        setReps(count);
-        isCurling = false;
+    // Cleanup function to stop AR when component unmounts
+    return () => {
+      if (window.arWorkout) {
+        window.arWorkout.stop()
       }
     }
-  };
+  }, [])
 
-  const calculateAngle = (a, b, c) => {
-    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-    let angle = Math.abs(radians * (180.0 / Math.PI));
-    if (angle > 180.0) {
-      angle = 360 - angle;
+  const startARWorkout = (workoutType: WorkoutType) => {
+    try {
+      setError(null)
+      setSelectedWorkout(workoutType)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to select workout type')
+      setSelectedWorkout(null)
     }
-    return angle;
-  };
+  }
 
   return (
-    <div>
-      <h1>Bicep Curl Counter: {reps}</h1>
-      <video ref={videoRef} style={{ display: 'block', width: '640px', height: '480px' }} />
-      <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0 }} />
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100">
+      <div className="container mx-auto px-4 py-8">
+        <Link href="/" className="flex items-center text-blue-600 hover:text-blue-800 mb-6">
+          <ArrowLeft className="mr-2" />
+          Back to Home
+        </Link>
+
+        <h1 className="text-3xl font-bold text-center text-blue-900 mb-8">
+          AR Workout Experience
+        </h1>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
+        {!selectedWorkout ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <Card className="p-6 text-center cursor-pointer hover:shadow-lg transition-shadow" onClick={() => startARWorkout('strength')}>
+              <h2 className="text-xl font-semibold mb-4">Strength Training</h2>
+              <p className="text-gray-600">Get real-time feedback on your form during strength exercises</p>
+            </Card>
+            <Card className="p-6 text-center cursor-pointer hover:shadow-lg transition-shadow" onClick={() => startARWorkout('yoga')}>
+              <h2 className="text-xl font-semibold mb-4">Yoga</h2>
+              <p className="text-gray-600">Perfect your yoga poses with AR guidance</p>
+            </Card>
+          </div>
+        ) : (
+          <div className="max-w-2xl mx-auto">
+            <WorkoutExercises type={selectedWorkout} />
+          </div>
+        )}
+      </div>
+
+      <Script
+        src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"
+        strategy="beforeInteractive"
+      />
+      <Script
+        src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.0.0/dist/pose-detection.js"
+        strategy="beforeInteractive"
+      />
+      <Script
+        src="/ar-workout.js"
+        strategy="afterInteractive"
+      />
     </div>
-  );
+  )
 }

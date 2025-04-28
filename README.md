@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Fitness Trainer with AR Workout
 
-## Getting Started
+A Next.js application that provides personalized fitness training with AR-powered workout tracking and form correction.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- AR-powered workout tracking and form correction
+- Real-time pose detection
+- Exercise library with detailed instructions
+- Personalized workout plans
+- Progress tracking
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- Python (v3.8 or higher)
+- npm or yarn
+- Windows PowerShell
+
+## Installation
+
+1. Clone the repository:
+```powershell
+git clone https://github.com/your-username/ai-fitness-trainer.git
+cd ai-fitness-trainer
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install Node.js dependencies:
+```powershell
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Install Python dependencies:
+```powershell
+pip install -r requirements.txt
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Running the Application
 
-## Learn More
+1. Open PowerShell in the project directory
 
-To learn more about Next.js, take a look at the following resources:
+2. Run the start script:
+```powershell
+.\start.ps1
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Or run manually:
+```powershell
+# Terminal 1 - Start Python backend
+cd server
+python back.py
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Terminal 2 - Start Next.js frontend
+cd ..
+npm run dev
+```
 
-## Deploy on Vercel
+3. Open your browser and navigate to:
+```
+http://localhost:3000
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/app` - Next.js application pages and components
+- `/components` - Reusable React components
+- `/public` - Static files and AR workout scripts
+- `/server` - Python backend server
+- `/models` - Data models and schemas
+- `/lib` - Utility functions and shared code
+
+## Environment Variables
+
+Create a `.env.local` file in the root directory with:
+```
+NEXT_PUBLIC_API_URL=http://localhost:5000
+```
+
+## Troubleshooting
+
+If you encounter any issues:
+
+1. Make sure Python and Node.js are installed and in your PATH
+2. Check if ports 3000 and 5000 are available
+3. Ensure all dependencies are installed correctly
+4. Try running the servers manually in separate terminals
+
+## License
+
+MIT License
+
+## Support
+
+For any questions or issues, please open an issue in the repository.

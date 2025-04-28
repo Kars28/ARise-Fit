@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="400" cy="300" r="250" fill="#E6F0FF" />
+  
+  <!-- Dumbbell -->
+  <rect x="300" y="250" width="200" height="20" rx="10" fill="#2563EB" />
+  <circle cx="300" cy="260" r="30" fill="#2563EB" />
+  <circle cx="500" cy="260" r="30" fill="#2563EB" />
+  
+  <!-- Running Person -->
+  <circle cx="400" cy="200" r="30" fill="#2563EB" />
+  <path d="M400 230 L400 300" stroke="#2563EB" stroke-width="10" stroke-linecap="round" />
+  <path d="M400 260 L350 290" stroke="#2563EB" stroke-width="10" stroke-linecap="round" />
+  <path d="M400 260 L450 290" stroke="#2563EB" stroke-width="10" stroke-linecap="round" />
+  <path d="M400 300 L350 350" stroke="#2563EB" stroke-width="10" stroke-linecap="round" />
+  <path d="M400 300 L450 350" stroke="#2563EB" stroke-width="10" stroke-linecap="round" />
+  
+  <!-- Decorative Elements -->
+  <circle cx="200" cy="200" r="10" fill="#2563EB" opacity="0.5" />
+  <circle cx="600" cy="400" r="15" fill="#2563EB" opacity="0.5" />
+  <circle cx="150" cy="350" r="8" fill="#2563EB" opacity="0.5" />
+  <circle cx="650" cy="250" r="12" fill="#2563EB" opacity="0.5" />
+</svg> 

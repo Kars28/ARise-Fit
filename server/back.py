@@ -17,6 +17,111 @@ from io import BytesIO
 from xhtml2pdf import pisa
 import re
 import google.generativeai as genai
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+import time
+from sklearn.metrics import silhouette_score, r2_score, mean_squared_error, mean_absolute_error
+from sklearn.model_selection import train_test_split
+from diet_recommender import DietRecommender
+import numpy as np
+import joblib
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+def calculate_bmi(weight, height):
+    """Calculate BMI from weight (kg) and height (cm)"""
+    height_m = height / 100  # Convert height from cm to m
+    return weight / (height_m * height_m)
+
+def generate_pdf_report(user_info, analysis, recommendations, bmi, daily_calories):
+    """Generate a PDF report with user information and recommendations"""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Title'],
+        fontSize=24,
+        spaceAfter=30
+    )
+    story.append(Paragraph("Health Analysis Report", title_style))
+
+    # User Information
+    story.append(Paragraph("Personal Information", styles['Heading2']))
+    user_data = [
+        ["Name:", user_info['name']],
+        ["Age:", str(user_info['age'])],
+        ["Weight:", f"{user_info['weight']} kg"],
+        ["Height:", f"{user_info['height']} cm"],
+        ["BMI:", f"{bmi:.2f}"],
+        ["Daily Calorie Needs:", f"{daily_calories:.0f} kcal"]
+    ]
+    user_table = Table(user_data, colWidths=[100, 200])
+    user_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+    ]))
+    story.append(user_table)
+    story.append(Spacer(1, 20))
+
+    # Analysis (without heading)
+    for report_type, data in analysis.items():
+        if data:
+            story.append(Paragraph(f"{report_type.capitalize()} Report", styles['Heading3']))
+            for key, value in data.items():
+                story.append(Paragraph(f"{key}: {value}", styles['Normal']))
+            story.append(Spacer(1, 10))
+
+    # Diet Recommendations
+    story.append(Paragraph("Diet Recommendations", styles['Heading2']))
+    story.append(Paragraph(f"Daily Calorie Target: {recommendations['daily_calories']} kcal", styles['Heading3']))
+    
+    # Create separate tables for each meal type
+    for meal_type in ['breakfast', 'lunch', 'dinner', 'snacks']:
+        if recommendations[meal_type]:
+            story.append(Paragraph(meal_type.capitalize(), styles['Heading3']))
+            meal_data = [["Food Item", "Calories"]]
+            for item in recommendations[meal_type]:
+                meal_data.append([item['item'], f"{item['calories']} kcal"])
+            
+            meal_table = Table(meal_data, colWidths=[300, 100])
+            meal_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('LEADING', (0, 0), (-1, -1), 14),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(meal_table)
+            story.append(Spacer(1, 10))
+
+    # Additional Notes
+    story.append(Paragraph("Additional Notes", styles['Heading2']))
+    notes = [
+        "• Maintain regular meal timings",
+        "• Stay hydrated throughout the day",
+        "• Include a variety of fruits and vegetables",
+        "• Limit processed foods and sugary drinks",
+        "• Exercise regularly as per your fitness level"
+    ]
+    for note in notes:
+        story.append(Paragraph(note, styles['Normal']))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -26,12 +131,24 @@ CORS(app)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+def calculate_daily_calories(weight, height, age, gender):
+    # Using Mifflin-St Jeor Equation
+    if gender.lower() == 'male':
+        bmr = 10 * weight + 6.25 * height - 5 * age + 5
+    else:
+        bmr = 10 * weight + 6.25 * height - 5 * age - 161
+    
+    # Assuming moderate activity level (1.55 multiplier)
+    return int(bmr * 1.55)
+
 # Load datasets with error handling
 def load_dataset(filepath):
     try:
-        return pd.read_csv(filepath)
+        # Look for files in the server directory
+        server_path = os.path.join(os.path.dirname(__file__), filepath)
+        return pd.read_csv(server_path)
     except FileNotFoundError:
-        print(f"Error: File not found at {filepath}")
+        print(f"Error: File not found at {server_path}")
         return None
 
 nutrition_df = load_dataset('nutrition_distribution_large.csv')
@@ -84,6 +201,9 @@ rf_reg.fit(nutrition_df[USER_FEATURES], nutrition_df['BMI'])
 
 # Configure Gemini AI
 genai.configure(api_key="AIzaSyB7aHEwumP-zI8f1TYCxjK_o3deLRxK0Ik")
+
+# Initialize the diet recommender
+diet_recommender = DietRecommender()
 
 # Recommend meal and workout based on user input
 def recommend_meal_and_workout(user_input):
@@ -343,48 +463,91 @@ AVERAGE_VALUES = {
 # Health recommendations based on extracted values
 def health_recommendation(data):
     recommendations = {}
+    diet_recommendations = {
+        "breakfast": [],
+        "lunch": [],
+        "dinner": [],
+        "snacks": []
+    }
 
-    # Blood Sugar
+    # Determine health conditions
+    health_conditions = {
+        'blood_sugar_level': 'normal',
+        'cholesterol_level': 'normal',
+        'bmi_category': 'normal'
+    }
+
+    # Analyze blood sugar
     if data["Fasting Blood Sugar"]:
-        fasting_blood_sugar = float(data["Fasting Blood Sugar"])  # Convert to float
+        fasting_blood_sugar = float(data["Fasting Blood Sugar"])
         if fasting_blood_sugar > 100:
+            health_conditions['blood_sugar_level'] = 'high'
             recommendations["Fasting Blood Sugar"] = "Consider consulting a doctor for potential diabetes management."
         else:
-            recommendations["Fasting Blood Sugar"] = "Your fasting blood sugar is in the normal range. Keep up with healthy eating habits and regular exercise."
-    else:
-        recommendations["Fasting Blood Sugar"] = "Fasting blood sugar is missing. A typical fasting blood sugar should be around 90 mg/dL."
+            recommendations["Fasting Blood Sugar"] = "Your fasting blood sugar is in the normal range."
 
-    if data["Post Prandial Blood Sugar"]:
-        post_prandial_blood_sugar = float(data["Post Prandial Blood Sugar"])  # Convert to float
-        if post_prandial_blood_sugar > 140:
-            recommendations["Post Prandial Blood Sugar"] = "Post-prandial blood sugar is elevated. Consult with a healthcare provider for further tests."
-        else:
-            recommendations["Post Prandial Blood Sugar"] = "Your post-prandial blood sugar is normal."
-    else:
-        recommendations["Post Prandial Blood Sugar"] = "Post-prandial blood sugar is missing. It should ideally be under 140 mg/dL."
-
-    # Thyroxine
-    if data["Thyroxine"]:
-        thyroxine = float(data["Thyroxine"])  # Convert to float
-        if thyroxine < 0.9 or thyroxine > 2.3:
-            recommendations["Thyroxine"] = "Thyroxine level is outside normal range. Consider consulting an endocrinologist."
-        else:
-            recommendations["Thyroxine"] = "Your thyroxine levels are normal."
-    else:
-        recommendations["Thyroxine"] = "Thyroxine value is missing. A normal thyroxine level is around 1.5 ng/dL."
-
-    # Cholesterol
+    # Analyze cholesterol
     if data["Cholesterol"]:
-        cholesterol = int(data["Cholesterol"])  # Convert to int
+        cholesterol = int(data["Cholesterol"])
         if cholesterol > 200:
+            health_conditions['cholesterol_level'] = 'high'
             recommendations["Cholesterol"] = "Your cholesterol is high. It's advisable to consult a healthcare provider."
         else:
-            recommendations["Cholesterol"] = "Your cholesterol is in a healthy range."
+            recommendations["Cholesterol"] = "Your cholesterol is in the normal range."
+
+    # Get ML-based recommendations for each meal
+    for meal_type in ['breakfast', 'lunch', 'dinner']:
+        recommended_foods = diet_recommender.recommend_foods(health_conditions, meal_type)
+        for food in recommended_foods:
+            # Add calorie information (this would ideally come from a food database)
+            calories = 300 if meal_type == 'breakfast' else 400 if meal_type == 'lunch' else 350
+            diet_recommendations[meal_type].append({
+                "item": food,
+                "calories": calories
+            })
+
+    # Add snacks recommendations
+    diet_recommendations["snacks"].extend([
+        {"item": "Handful of nuts", "calories": 150},
+        {"item": "Fruit salad", "calories": 120},
+        {"item": "Coconut yogurt with berries", "calories": 180}
+    ])
+
+    return recommendations, diet_recommendations
+
+def analyze_health_status(bmi, data):
+    health_status = {
+        "weight_status": "",
+        "recommendations": []
+    }
+    
+    # Analyze weight status
+    if bmi < 18.5:
+        health_status["weight_status"] = "Underweight"
+        health_status["recommendations"].append("Consider increasing calorie intake with healthy foods")
+    elif 18.5 <= bmi < 25:
+        health_status["weight_status"] = "Normal weight"
+        health_status["recommendations"].append("Maintain current healthy eating habits")
+    elif 25 <= bmi < 30:
+        health_status["weight_status"] = "Overweight"
+        health_status["recommendations"].append("Consider reducing calorie intake and increasing physical activity")
     else:
-        recommendations["Cholesterol"] = "Cholesterol value is missing. Normal total cholesterol is below 200 mg/dL."
-
-    return recommendations
-
+        health_status["weight_status"] = "Obese"
+        health_status["recommendations"].append("Consult a healthcare provider for weight management guidance")
+    
+    # Analyze blood sugar
+    if data.get("Fasting Blood Sugar"):
+        blood_sugar = float(data["Fasting Blood Sugar"])
+        if blood_sugar > 100:
+            health_status["recommendations"].append("Monitor blood sugar levels and consider dietary modifications")
+    
+    # Analyze cholesterol
+    if data.get("Cholesterol"):
+        cholesterol = int(data["Cholesterol"])
+        if cholesterol > 200:
+            health_status["recommendations"].append("Focus on heart-healthy diet and regular exercise")
+    
+    return health_status
 
 # Function to extract data from report text
 def extract_data_from_report(text):
@@ -437,42 +600,205 @@ def extract_data_from_file(file_path):
             text += page.extract_text()
 
     data = extract_data_from_report(text)
-    recommendations = health_recommendation(data)
-    return data, recommendations
+    recommendations, diet_recommendations = health_recommendation(data)
+    return data, recommendations, diet_recommendations
+
 # Route to upload multiple files
 @app.route('/analyzereport', methods=['POST'])
 def upload_files():
+    print("Received request at /analyzereport")
+    
     if 'file' not in request.files:
+        print("No file part in request")
         return jsonify({"error": "No file part"}), 400
 
-    files = request.files.getlist('file')  # Accept multiple files
+    files = request.files.getlist('file')
+    print(f"Received {len(files)} files")
+    
+    # Get user information
+    user_info = {
+        'name': request.form.get('name'),
+        'age': int(request.form.get('age')),
+        'weight': float(request.form.get('weight')),
+        'height': float(request.form.get('height')),
+        'dairy_allergy': request.form.get('dairy_allergy') == 'true',
+        'peanut_allergy': request.form.get('peanut_allergy') == 'true'
+    }
+    print(f"User info: {user_info}")
+    
+    # Calculate BMI and daily calories
+    try:
+        bmi = calculate_bmi(user_info['weight'], user_info['height'])
+        daily_calories = calculate_daily_calories(user_info['weight'], user_info['height'], user_info['age'], 'female')
+        print(f"Calculated BMI: {bmi}, Daily Calories: {daily_calories}")
+    except Exception as e:
+        print(f"Error calculating BMI/calories: {str(e)}")
+        return jsonify({"error": f"Error calculating health metrics: {str(e)}"}), 500
+    
     results = {}
+    analysis = {
+        'blood': {},
+        'cholesterol': {},
+        'thyroxine': {}
+    }
     
     for file in files:
+        if file.filename == '':
+            print("Empty filename found")
+            return jsonify({"error": "One or more files have no filename"}), 400
+            
+        print(f"Processing file: {file.filename}")
         # Save the uploaded files
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)
         
         # Extract data from the uploaded file
-        extracted_data, recommendations = extract_data_from_file(file_path)
+        extracted_data, recommendations, diet_recommendations = extract_data_from_file(file_path)
+        
+        # Store results
         results[file.filename] = {
             "extracted_data": extracted_data,
-            "recommendations": recommendations
+            "recommendations": recommendations,
+            "diet_recommendations": diet_recommendations
         }
+        
+        # Add to analysis
+        if 'blood' in file.filename.lower():
+            analysis['blood'] = recommendations
+        elif 'cholesterol' in file.filename.lower():
+            analysis['cholesterol'] = recommendations
+        elif 'thyroxine' in file.filename.lower():
+            analysis['thyroxine'] = recommendations
     
-    # Return results as JSON
-    return jsonify({"Extracted Results": results})
+    # Combine diet recommendations
+    combined_recommendations = {
+        'breakfast': [],
+        'lunch': [],
+        'dinner': [],
+        'snacks': [],
+        'daily_calories': daily_calories
+    }
+    
+    for result in results.values():
+        if result.get('diet_recommendations'):
+            for meal_type in ['breakfast', 'lunch', 'dinner', 'snacks']:
+                if result['diet_recommendations'].get(meal_type):
+                    combined_recommendations[meal_type].extend(result['diet_recommendations'][meal_type])
+    
+    # Remove duplicates and limit to 3 items per meal
+    for meal_type in ['breakfast', 'lunch', 'dinner', 'snacks']:
+        # Remove duplicates based on item name
+        seen = set()
+        unique_items = []
+        for item in combined_recommendations[meal_type]:
+            if isinstance(item, dict) and item['item'] not in seen:
+                seen.add(item['item'])
+                unique_items.append(item)
+        # Limit to 3 items
+        combined_recommendations[meal_type] = unique_items[:3]
+    
+    # Filter out allergens
+    if user_info['dairy_allergy']:
+        for meal_type in ['breakfast', 'lunch', 'dinner', 'snacks']:
+            combined_recommendations[meal_type] = [
+                item for item in combined_recommendations[meal_type]
+                if 'milk' not in item['item'].lower() 
+                and 'dairy' not in item['item'].lower()
+                and 'yogurt' not in item['item'].lower()
+                and 'cheese' not in item['item'].lower()
+            ]
+    
+    if user_info['peanut_allergy']:
+        for meal_type in ['breakfast', 'lunch', 'dinner', 'snacks']:
+            combined_recommendations[meal_type] = [
+                item for item in combined_recommendations[meal_type]
+                if 'peanut' not in item['item'].lower()
+                and 'groundnut' not in item['item'].lower()
+            ]
+    
+    # Analyze health status
+    health_status = analyze_health_status(bmi, results.get(list(results.keys())[0], {}).get('extracted_data', {}))
+    
+    try:
+        # Generate PDF
+        pdf_buffer = generate_pdf_report(user_info, analysis, combined_recommendations, bmi, daily_calories)
+        print("PDF generated successfully")
+        
+        # Save PDF temporarily with a unique name
+        pdf_filename = f"diet_recommendations_{user_info['name']}_{int(time.time())}.pdf"
+        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_buffer.getvalue())
+        
+        print(f"PDF saved successfully at: {pdf_path}")
+        
+        # Return results with the full URL for download
+        return jsonify({
+            "analysis": analysis,
+            "diet_recommendations": combined_recommendations,
+            "health_status": health_status,
+            "pdf_url": f"http://localhost:5000/download/{pdf_filename}"
+        })
+    except Exception as e:
+        print(f"Error generating PDF: {str(e)}")
+        return jsonify({"error": f"Error generating PDF: {str(e)}"}), 500
 
-@app.route('/generate_indian_diet', methods=['POST'])
-def generate_indian_diet():
-    data = request.json
-    prompt = f"Suggest an Indian diet plan for a {data['age']} year old {data['gender']} with a goal to {data['goal']}. Include options for breakfast, lunch, and dinner in three lines."
-    
-    genai.configure(api_key="AIzaSyB7aHEwumP-zI8f1TYCxjK_o3deLRxK0Ik")
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    
-    return jsonify({"diet_plan": response.text})
+@app.route('/download/<filename>')
+def download_file(filename):
+    try:
+        print(f"Attempting to download file: {filename}")
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            return jsonify({"error": "File not found"}), 404
+        print(f"Serving file from: {file_path}")
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        print(f"Error serving file: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/metrics', methods=['GET'])
+def get_metrics():
+    """Endpoint to get model performance metrics"""
+    return jsonify(model_metrics)
+
+@app.route('/api/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        features = np.array([
+            data['age'],
+            data['weight'],
+            data['height'],
+            data['activity_level'],
+            data['goal']
+        ]).reshape(1, -1)
+        
+        # Scale the features
+        scaled_features = scaler.transform(features)
+        
+        # Make prediction
+        prediction = model.predict(scaled_features)
+        
+        return jsonify({
+            'prediction': prediction[0],
+            'status': 'success'
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'status': 'error'
+        }), 400
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'healthy'})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.getenv('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
