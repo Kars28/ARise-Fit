@@ -1,94 +1,36 @@
-# AI Fitness Trainer with AR Workout
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A Next.js application that provides personalized fitness training with AR-powered workout tracking and form correction.
+## Getting Started
 
-## Features
+First, run the development server:
 
-- AR-powered workout tracking and form correction
-- Real-time pose detection
-- Exercise library with detailed instructions
-- Personalized workout plans
-- Progress tracking
-
-## Prerequisites
-
-- Node.js (v18 or higher)
-- Python (v3.8 or higher)
-- npm or yarn
-- Windows PowerShell
-
-## Installation
-
-1. Clone the repository:
-```powershell
-git clone https://github.com/Praniti03/assignment_task.git
-cd assignment_task
-```
-
-2. Install Node.js dependencies:
-```powershell
-npm install
-```
-
-3. Install Python dependencies:
-```powershell
-pip install -r requirements.txt
-```
-
-## Running the Application
-
-1. Open PowerShell in the project directory
-
-2. Run the start script:
-```powershell
-.\start.ps1
-```
-
-Or run manually:
-```powershell
-# Terminal 1 - Start Python backend
-cd server
-python back.py
-
-# Terminal 2 - Start Next.js frontend
-cd ..
+```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-3. Open your browser and navigate to:
-```
-http://localhost:3000
-```
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Project Structure
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-- `/app` - Next.js application pages and components
-- `/components` - Reusable React components
-- `/public` - Static files and AR workout scripts
-- `/server` - Python backend server
-- `/models` - Data models and schemas
-- `/lib` - Utility functions and shared code
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Environment Variables
+## Learn More
 
-Create a `.env.local` file in the root directory with:
-```
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
+To learn more about Next.js, take a look at the following resources:
 
-## Troubleshooting
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-If you encounter any issues:
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-1. Make sure Python and Node.js are installed and in your PATH
-2. Check if ports 3000 and 5000 are available
-3. Ensure all dependencies are installed correctly
-4. Try running the servers manually in separate terminals
+## Deploy on Vercel
 
-## License
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-MIT License
-
-## Support
-
-For any questions or issues, please open an issue in the repository.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

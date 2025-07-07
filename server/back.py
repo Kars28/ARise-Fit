@@ -26,12 +26,6 @@ import time
 from sklearn.metrics import silhouette_score, r2_score, mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
 from diet_recommender import DietRecommender
-import numpy as np
-import joblib
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 def calculate_bmi(weight, height):
     """Calculate BMI from weight (kg) and height (cm)"""
@@ -144,11 +138,9 @@ def calculate_daily_calories(weight, height, age, gender):
 # Load datasets with error handling
 def load_dataset(filepath):
     try:
-        # Look for files in the server directory
-        server_path = os.path.join(os.path.dirname(__file__), filepath)
-        return pd.read_csv(server_path)
+        return pd.read_csv(filepath)
     except FileNotFoundError:
-        print(f"Error: File not found at {server_path}")
+        print(f"Error: File not found at {filepath}")
         return None
 
 nutrition_df = load_dataset('nutrition_distribution_large.csv')
@@ -767,38 +759,5 @@ def get_metrics():
     """Endpoint to get model performance metrics"""
     return jsonify(model_metrics)
 
-@app.route('/api/predict', methods=['POST'])
-def predict():
-    try:
-        data = request.json
-        features = np.array([
-            data['age'],
-            data['weight'],
-            data['height'],
-            data['activity_level'],
-            data['goal']
-        ]).reshape(1, -1)
-        
-        # Scale the features
-        scaled_features = scaler.transform(features)
-        
-        # Make prediction
-        prediction = model.predict(scaled_features)
-        
-        return jsonify({
-            'prediction': prediction[0],
-            'status': 'success'
-        })
-    except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'status': 'error'
-        }), 400
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    return jsonify({'status': 'healthy'})
-
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(debug=True)

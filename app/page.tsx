@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Dumbbell, Utensils, ArrowRight, Heart, Shield, Brain, Leaf } from "lucide-react"
+import { Dumbbell, Utensils, ArrowRight, Heart, Shield, Brain } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -41,11 +41,11 @@ export default function LandingPage() {
                   Start Analysis <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/workout">
+              <a href="https://ossistant.vercel.app/fitnesstrainer" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
-                  Try AR Workout <Dumbbell className="ml-2 h-5 w-5" />
+                  Workout
                 </Button>
-              </Link>
+              </a>
             </div>
           </div>
           <div className="flex-1 relative">
@@ -81,11 +81,6 @@ export default function LandingPage() {
               <Brain className="h-12 w-12 text-blue-600" />
               <h3 className="text-xl font-semibold text-blue-900">AI-Powered</h3>
               <p className="text-blue-700">Advanced AI algorithms to provide accurate and personalized recommendations.</p>
-            </div>
-            <div className="bg-blue-50 p-6 rounded-xl space-y-4">
-              <Leaf className="h-12 w-12 text-blue-600" />
-              <h3 className="text-xl font-semibold text-blue-900">AR Workout Guide</h3>
-              <p className="text-blue-700">Experience interactive AR-guided workouts for better form and results.</p>
             </div>
           </div>
         </div>

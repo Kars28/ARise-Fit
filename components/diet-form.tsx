@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import axios from "axios"
 import { Upload } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,18 +11,38 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function DietForm() {
-  const [formData, setFormData] = useState({
-    weight: "",
-    height: "",
-    dairy_allergy: false,
-    blood_sugar: null,
-    thyroxine: null,
-    cholesterol: null,
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+// Define the API URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
-  const handleChange = (e) => {
+interface FormData {
+  weight: string;
+  height: string;
+  dairy_allergy: boolean;
+  blood_sugar: File | null;
+  thyroxine: File | null;
+  cholesterol: File | null;
+}
+
+const initialFormData: FormData = {
+  weight: "",
+  height: "",
+  dairy_allergy: false,
+  blood_sugar: null,
+  thyroxine: null,
+  cholesterol: null,
+}
+
+export default function DietForm() {
+  const { toast } = useToast()
+  const [formData, setFormData] = useState<FormData>(initialFormData)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -29,36 +50,67 @@ export default function DietForm() {
     }))
   }
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target
+    if (files && files.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: files[0],
+      }))
+    }
+  }
+
+  const handleCheckboxChange = (checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: files[0],
+      dairy_allergy: checked,
     }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    const data = new FormData()
-    data.append("weight", formData.weight)
-    data.append("height", formData.height)
-    data.append("dairy_allergy", formData.dairy_allergy)
-
-    if (formData.blood_sugar) data.append("blood_sugar", formData.blood_sugar)
-    if (formData.thyroxine) data.append("thyroxine", formData.thyroxine)
-    if (formData.cholesterol) data.append("cholesterol", formData.cholesterol)
-
     try {
-      await axios.post("/diet", data)
-      // Handle success - you can add toast notification or redirect here
+      const data = new FormData()
+      data.append("weight", formData.weight)
+      data.append("height", formData.height)
+      data.append("dairy_allergy", String(formData.dairy_allergy))
+
+      // Only append files if they exist
+      if (formData.blood_sugar) data.append("blood_sugar", formData.blood_sugar)
+      if (formData.thyroxine) data.append("thyroxine", formData.thyroxine)
+      if (formData.cholesterol) data.append("cholesterol", formData.cholesterol)
+
+      const response = await axios.post(`${API_URL}/diet`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      if (response.data) {
+        toast({
+          title: "Success",
+          description: "Analysis submitted successfully!",
+        })
+        // Reset form after successful submission
+        setFormData(initialFormData)
+      }
     } catch (error) {
       console.error("Error submitting data:", error)
-      // Handle error - you can add toast notification here
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit analysis",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
+  }
 
-    setIsSubmitting(false)
+  // Don't render until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return null
   }
 
   return (
@@ -105,7 +157,7 @@ export default function DietForm() {
               id="dairy_allergy"
               name="dairy_allergy"
               checked={formData.dairy_allergy}
-              onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, dairy_allergy: checked }))}
+              onCheckedChange={handleCheckboxChange}
             />
             <Label htmlFor="dairy_allergy">Dairy Allergy</Label>
           </div>
@@ -129,7 +181,12 @@ export default function DietForm() {
             ))}
           </div>
 
-          <Button type="submit" disabled={isSubmitting} className="w-full" variant="destructive">
+          <Button 
+            type="submit" 
+            disabled={isSubmitting} 
+            className="w-full" 
+            variant="destructive"
+          >
             {isSubmitting ? "Analyzing..." : "Submit Analysis"}
           </Button>
         </form>

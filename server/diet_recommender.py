@@ -41,26 +41,13 @@ class DietRecommender:
         }
         self.best_model = None
         self.scaler = StandardScaler()
-        self.label_encoders = {}
+        self.label_encoder = LabelEncoder()
         self.model_path = 'models/diet_recommender.pkl'
         self.scaler_path = 'models/scaler.pkl'
         self.encoder_path = 'models/label_encoder.pkl'
         
         # Create models directory if it doesn't exist
         os.makedirs('models', exist_ok=True)
-        
-        # Initialize label encoders with all possible values
-        self.label_mapping = {
-            'blood_sugar_level': ['normal', 'high', 'low'],
-            'cholesterol_level': ['normal', 'high', 'low'],
-            'bmi_category': ['underweight', 'normal', 'overweight', 'obese'],
-            'meal_type': ['breakfast', 'lunch', 'dinner', 'snacks']
-        }
-        
-        for feature, labels in self.label_mapping.items():
-            encoder = LabelEncoder()
-            encoder.fit(labels)
-            self.label_encoders[feature] = encoder
         
         # Load or create model
         if os.path.exists(self.model_path):
@@ -189,17 +176,26 @@ class DietRecommender:
         
         return pd.DataFrame(data)
 
-    def preprocess_data(self):
+    def preprocess_data(self, df):
         """Preprocess the data for training"""
-        # Transform the data
-        for feature in self.label_mapping.keys():
-            if feature in self.data.columns:
-                self.data[feature] = self.label_encoders[feature].transform(self.data[feature])
+        # Define all possible categories
+        all_categories = {
+            'blood_sugar_level': ['high', 'normal', 'low'],
+            'cholesterol_level': ['high', 'normal', 'low'],
+            'bmi_category': ['underweight', 'normal', 'overweight', 'obese'],
+            'meal_type': ['breakfast', 'lunch', 'dinner', 'snacks']
+        }
+        
+        # Fit label encoders with all possible categories
+        for col, categories in all_categories.items():
+            self.label_encoder.fit(categories)
+            df[col] = self.label_encoder.transform(df[col])
         
         # Scale numerical features
-        self.scaler = StandardScaler()
         numerical_features = ['calories', 'protein', 'carbs', 'fats', 'fiber']
-        self.data[numerical_features] = self.scaler.fit_transform(self.data[numerical_features])
+        df[numerical_features] = self.scaler.fit_transform(df[numerical_features])
+        
+        return df
 
     def create_and_train_models(self):
         """Create and train multiple models, then select the best one"""
@@ -207,11 +203,11 @@ class DietRecommender:
         df = self.create_sample_dataset()
         
         # Preprocess data
-        self.preprocess_data()
+        df_processed = self.preprocess_data(df)
         
         # Prepare features and target
-        X = df.drop(['food_item'], axis=1)
-        y = df['food_item']
+        X = df_processed.drop(['food_item'], axis=1)
+        y = df_processed['food_item']
         
         # Split data with stratification
         X_train, X_test, y_train, y_test = train_test_split(
@@ -283,66 +279,47 @@ class DietRecommender:
         """Save the trained model and preprocessing objects"""
         joblib.dump(self.best_model, self.model_path)
         joblib.dump(self.scaler, self.scaler_path)
-        joblib.dump(self.label_encoders, self.encoder_path)
+        joblib.dump(self.label_encoder, self.encoder_path)
 
     def load_model(self):
         """Load the trained model and preprocessing objects"""
         self.best_model = joblib.load(self.model_path)
         self.scaler = joblib.load(self.scaler_path)
-        self.label_encoders = joblib.load(self.encoder_path)
+        self.label_encoder = joblib.load(self.encoder_path)
 
-    def get_default_recommendations(self, meal_type):
-        """Return default recommendations if ML model fails"""
-        defaults = {
-            'breakfast': [
-                {'item': 'Oats with almond milk', 'calories': 300},
-                {'item': 'Whole wheat toast', 'calories': 250},
-                {'item': 'Idli with sambar', 'calories': 280}
-            ],
-            'lunch': [
-                {'item': 'Brown rice with dal', 'calories': 400},
-                {'item': 'Roti with palak tofu', 'calories': 350},
-                {'item': 'Quinoa salad', 'calories': 380}
-            ],
-            'dinner': [
-                {'item': 'Moong dal khichdi', 'calories': 350},
-                {'item': 'Vegetable soup', 'calories': 300},
-                {'item': 'Grilled fish', 'calories': 400}
-            ],
-            'snacks': [
-                {'item': 'Handful of nuts', 'calories': 150},
-                {'item': 'Fruit salad', 'calories': 120},
-                {'item': 'Coconut yogurt with berries', 'calories': 180}
-            ]
-        }
-        return defaults.get(meal_type, [])
-
-    def recommend_foods(self, health_conditions, meal_type):
-        """Recommend foods based on health conditions and meal type"""
+    def recommend_foods(self, health_conditions, meal_type, num_recommendations=3):
+        """Recommend foods based on health conditions using the best model"""
         try:
             # Create input features
-            input_features = pd.DataFrame([{
-                'blood_sugar_level': health_conditions.get('blood_sugar_level', 'normal'),
-                'cholesterol_level': health_conditions.get('cholesterol_level', 'normal'),
-                'bmi_category': health_conditions.get('bmi_category', 'normal'),
-                'meal_type': meal_type
-            }])
+            input_features = pd.DataFrame({
+                'calories': [health_conditions.get('calories', 0)],
+                'protein': [health_conditions.get('protein', 0)],
+                'carbs': [health_conditions.get('carbs', 0)],
+                'fats': [health_conditions.get('fats', 0)],
+                'fiber': [health_conditions.get('fiber', 0)],
+                'blood_sugar_level': [health_conditions.get('blood_sugar_level', 'normal')],
+                'cholesterol_level': [health_conditions.get('cholesterol_level', 'normal')],
+                'bmi_category': [health_conditions.get('bmi_category', 'normal')],
+                'meal_type': [meal_type]
+            })
             
-            # Transform categorical features
-            for feature, encoder in self.label_encoders.items():
-                if feature in input_features.columns:
-                    # Handle unseen labels by mapping them to 'normal'
-                    input_features[feature] = input_features[feature].apply(
-                        lambda x: encoder.transform(['normal'])[0] if x not in encoder.classes_ else encoder.transform([x])[0]
-                    )
+            # Preprocess input
+            for col in ['blood_sugar_level', 'cholesterol_level', 'bmi_category', 'meal_type']:
+                input_features[col] = self.label_encoder.transform(input_features[col])
             
-            # Get predictions
-            predictions = self.best_model.predict(input_features)
-            return predictions.tolist()
+            numerical_features = ['calories', 'protein', 'carbs', 'fats', 'fiber']
+            input_features[numerical_features] = self.scaler.transform(input_features[numerical_features])
+            
+            # Get predictions from best model
+            probabilities = self.best_model.predict_proba(input_features)[0]
+            top_indices = np.argsort(probabilities)[-num_recommendations:][::-1]
+            recommended_foods = [self.best_model.classes_[i] for i in top_indices]
+            
+            return recommended_foods
         except Exception as e:
             print(f"Error in recommend_foods: {str(e)}")
-            # Return default recommendations if there's an error
-            return self.get_default_recommendations(meal_type)
+            # Return default recommendations if ML fails
+            return ['Oats with almond milk', 'Whole wheat toast', 'Idli with sambar']
 
 # Example usage
 if __name__ == "__main__":
