@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Ignore uploaded PDFs and temp files
+uploads/
+server/uploads/
+*.pdf
+
+# Unity or large asset files
+*.unitypackage
+*.zip
+*.exe
+
+# macOS system files
+.DS_Store
+node_modules
