@@ -41,6 +41,10 @@ This project is inspired by:
 - Ray & Saha (2024) - AI-Powered Virtual Fitness Trainer
 - And many more from the literature review in our paper.
 
+## 🙋 My Contribution
+
+Team project, Bachelor of Engineering (Computer Engineering), A. P. Shah Institute of Technology. I (Kartik Kanchan) wrote the code for the application.
+
 ## 👨‍💻 Authors
 
 - Rutuja Dambir — [`rutujadambir105@apsit.edu.in`](mailto:rutujadambir105@apsit.edu.in)
